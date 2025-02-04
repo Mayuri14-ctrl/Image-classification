@@ -44,14 +44,18 @@ Select the notebook (.ipynb) you want to open and click "Open in Colab".
 ### Method 2: Clone a GitHub Repository in Colab
 If you want to work with Python scripts (.py) or data files, follow these steps:
 
-Step 1: Mount Google Drive (Optional)
-If you want to save results or models, mount your Google Drive:
+### Step 1: Clone the GitHub Repository
+Run the following command in a Colab cell:
 
-python
-Copy
-Edit
-from google.colab import drive
-drive.mount('/content/drive')
+```
+!git clone https://github.com/Mayuri14-ctrl/Image-classification.git
+```
+This will download the repository into Colab.
 
+### Step 3: Change Directory to the Cloned Repo
+Navigate into the cloned repository:
+```
+%cd Image-classification
+```
 
 
