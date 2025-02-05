@@ -511,9 +511,7 @@ Detects keypoints and extracts descriptors using ORB.
 If no keypoints are found, it returns a zero vector (to avoid errors).
 Trims the descriptor vector to 32 elements for consistency.
 🔹 Training with OpenCV Features
-python
-Copy
-Edit
+```
 def train_with_opencv_features(model, train_loader, criterion, optimizer, device, epochs=5):
     model.train()
     for epoch in range(epochs):
@@ -552,6 +550,7 @@ def train_with_opencv_features(model, train_loader, criterion, optimizer, device
         epoch_loss = running_loss / len(train_loader)
         epoch_accuracy = correct / total
         print(f"Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
+```
 📌 Key Modifications in Training Process:
 
 Extracts ORB features for each image using extract_orb_features().
@@ -560,9 +559,7 @@ Combines the CNN (ResNet50) output with ORB features (torch.cat).
 Passes the combined features through the final classifier (model.fc).
 Computes loss and updates weights using backpropagation.
 🔹 Evaluation with OpenCV Features
-python
-Copy
-Edit
+```
 def evaluate_with_opencv_features(model, val_loader, device):
     model.eval()
     y_true = []
@@ -592,6 +589,7 @@ def evaluate_with_opencv_features(model, val_loader, device):
     # Classification Report
     print("Classification Report:")
     print(classification_report(y_true, y_pred, target_names=train_dataset.classes))
+```
 📌 Key Changes in Evaluation:
 
 Uses torch.no_grad() to disable gradients for efficiency.
@@ -599,9 +597,7 @@ Extracts and normalizes ORB features for validation images.
 Combines ORB features with CNN features before classification.
 Computes predictions and generates a classification report.
 🔹 Running Training and Evaluation
-python
-Copy
-Edit
+```
 # Train the model with OpenCV features integrated
 train_with_opencv_features(model, train_loader, criterion, optimizer, device, epochs=5)
 
@@ -612,6 +608,7 @@ evaluate_with_opencv_features(model, val_loader, device)
 torch.save(model.state_dict(), "hybrid_xray_model.pth")
 
 print("✅ Step 4: Integration of OpenCV Features with Deep Learning Complete.")
+```
 Trains the model using both ResNet50 and ORB features.
 Evaluates performance on validation data.
 Saves the trained model for future use.
