@@ -230,7 +230,7 @@ test_df.to_csv("test_data.csv", index=False)
 ### Step 2: ORB Feature Extraction for Image Data
 In Step 2, the focus shifts to extracting features from the images in the preprocessed dataset using the ORB (Oriented FAST and Rotated BRIEF) method. ORB is a keypoint detection algorithm that is widely used in computer vision, especially for tasks like object recognition or matching, due to its speed and efficiency. Here's a detailed breakdown of this step:
 
-#### 1. Set Paths and Initialize ORB
+#### 2.1. Set Paths and Initialize ORB
 At the start of the script, paths for the preprocessed images and the output CSV file are set. The processed_images_path points to the folder containing the preprocessed training images. The output_csv defines the path where the extracted features will be saved.
 
 ##### ORB Initialization:
@@ -244,7 +244,7 @@ output_csv = "train_orb_features.csv"  # Output CSV file to store extracted feat
 ##### ORB Feature Extractor Initialization
 orb = cv2.ORB_create(nfeatures=500)  # Create ORB detector that detects up to 500 keypoints
 
-#### 2. Feature Extraction
+#### 2.2. Feature Extraction
 The script uses the os library to iterate over all class folders in the processed_images_path, and for each class, it processes the images within the folder. For each image, the following operations are carried out:
 
 Load Image:
@@ -286,7 +286,7 @@ for class_name in os.listdir(processed_images_path):
             "Descriptors": descriptors.tolist() if descriptors is not None else None
         })
 ```
-#### 3. Save the Extracted Features to CSV
+#### 2.3. Save the Extracted Features to CSV
 Once the features for all images have been extracted and stored, they are converted into a pandas DataFrame. The DataFrame is then saved as a CSV file (train_orb_features.csv) for later use in machine learning models or other tasks.
 
 Descriptors as Lists:
@@ -298,3 +298,187 @@ features_df = pd.DataFrame(features_list)
 # Save the features to a CSV file
 features_df.to_csv(output_csv, index=False)
 ```
+### Step 3: Training a Deep Learning Model for Chest X-Ray Classification
+In this step, we train a ResNet-50 deep learning model on the preprocessed X-ray images. This process includes loading data, defining a model, training it, and evaluating its performance.
+
+1️⃣ Preparing the Dataset
+We first load the preprocessed images into PyTorch’s DataLoader.
+
+1.1 Define Image Transformations
+Neural networks require images in a specific format. We apply:
+
+Conversion to Tensors: Converts images into PyTorch tensors.
+Normalization: Matches the mean and standard deviation of ImageNet to help ResNet-50 perform optimally.
+python
+Copy
+Edit
+import torchvision.transforms as transforms
+
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+1.2 Load the Preprocessed Dataset
+Since the images were saved in folders by class (processed_images/train, processed_images/val, processed_images/test), we use datasets.ImageFolder() to read them.
+
+python
+Copy
+Edit
+from torchvision import datasets
+from torch.utils.data import DataLoader
+
+train_dataset = datasets.ImageFolder(root='./processed_images/train', transform=transform)
+val_dataset = datasets.ImageFolder(root='./processed_images/val', transform=transform)
+test_dataset = datasets.ImageFolder(root='./processed_images/test', transform=transform)
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+2️⃣ Defining the Deep Learning Model
+We use ResNet-50, a pre-trained CNN model from ImageNet.
+
+2.1 Load Pretrained ResNet-50
+python
+Copy
+Edit
+import torch
+import torch.nn as nn
+from torchvision import models
+
+model = models.resnet50(pretrained=True)
+2.2 Freeze Pretrained Layers
+We freeze the model’s existing layers so that only the last layer learns from our dataset.
+
+python
+Copy
+Edit
+for param in model.parameters():
+    param.requires_grad = False
+2.3 Modify the Final Layer
+The last layer of ResNet-50 is modified to match the number of classes in our dataset.
+
+python
+Copy
+Edit
+num_classes = len(train_dataset.classes)
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+2.4 Move Model to GPU (If Available)
+We check for a CUDA-enabled GPU and move the model to the device.
+
+python
+Copy
+Edit
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+3️⃣ Defining the Loss Function & Optimizer
+Loss Function: CrossEntropyLoss(), which is used for multi-class classification.
+Optimizer: Adam(), applied only to the last layer (since other layers are frozen).
+python
+Copy
+Edit
+import torch.optim as optim
+
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.fc.parameters(), lr=0.001)
+4️⃣ Training the Model
+4.1 Define the Training Function
+We define a function to train the model for multiple epochs:
+
+python
+Copy
+Edit
+from tqdm import tqdm
+
+def train(model, train_loader, criterion, optimizer, device, epochs=10):
+    model.train()
+    for epoch in range(epochs):
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        for inputs, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}"):
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            optimizer.zero_grad()
+            
+            # Forward pass
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            
+            # Statistics
+            running_loss += loss.item()
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        epoch_loss = running_loss / len(train_loader)
+        epoch_accuracy = correct / total
+        print(f"Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
+4.2 Train the Model
+We call the train() function to train the model for 5 epochs.
+
+python
+Copy
+Edit
+train(model, train_loader, criterion, optimizer, device, epochs=5)
+
+ Model Evaluation and Saving
+After training the model, we need to evaluate its performance on the validation set. This involves computing accuracy, precision, recall, and F1-score for each class. We use the evaluate() function to do this.
+
+1️⃣ Defining the Evaluation Function
+The evaluate() function follows these steps:
+
+Set the model to evaluation mode (model.eval()) so that dropout and batch normalization behave properly.
+Disable gradient computation (torch.no_grad()) to improve efficiency.
+Loop over the validation set and make predictions.
+Store actual labels (y_true) and predicted labels (y_pred).
+Ensure only valid classes are included to avoid mismatches in the classification report.
+Print a classification report showing precision, recall, and F1-score for each class.
+🔹 Function Code Breakdown
+python
+Copy
+Edit
+def evaluate(model, val_loader, device):
+    model.eval()  # Set model to evaluation mode
+    y_true = []  # List to store true labels
+    y_pred = []  # List to store predicted labels
+
+    with torch.no_grad():  # Disable gradient computation
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            outputs = model(inputs)  # Forward pass
+            _, predicted = torch.max(outputs, 1)  # Get class with highest probability
+            
+            y_true.extend(labels.cpu().numpy())  # Convert tensors to numpy arrays
+            y_pred.extend(predicted.cpu().numpy())
+
+    # Ensure classes are only those present in both train & validation datasets
+    valid_classes = list(sorted(set(train_dataset.classes) & set(val_dataset.classes)))
+
+    # Print classification report
+    print("Classification Report:")
+    print(classification_report(y_true, y_pred, target_names=valid_classes))
+2️⃣ Running the Evaluation
+We call the function to evaluate the model on the validation set.
+
+python
+Copy
+Edit
+evaluate(model, val_loader, device)
+📌 Output:
+
+The function prints a classification report, which includes:
+Precision: How many predicted cases were actually correct.
+Recall: How many actual cases were correctly predicted.
+F1-score: The harmonic mean of precision and recall.
+
+✅ Summary of Step 3
+Loaded the preprocessed X-ray images using ImageFolder.
+Used ResNet-50 as a pre-trained model, freezing all but the last layer.
+Modified the final layer to match our dataset’s number of classes.
+Defined a loss function (CrossEntropyLoss) and optimizer (Adam).
+Trained the model for multiple epochs using GPU acceleration.
+
+
