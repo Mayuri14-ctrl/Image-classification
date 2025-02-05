@@ -67,12 +67,12 @@ print("Path to dataset files:", path)
 !cp -r /root/.cache/kagglehub/datasets/rishabhrp/chest-x-ray-dataset/versions/1 /content/chest-x-ray-dataset
 dataset_path = "/content/chest-x-ray-dataset"
 ```
-#### Start building model pipeline
+## Start building model pipeline
 ### Step 1: Data Preprocessing and Augmentation
 In this step, we focus on the essential tasks required to prepare the Chest X-ray dataset for model training. This includes data loading, class balancing, and applying augmentations. Here's a breakdown of the process:
 
-1.1. Loading the Dataset
-Setting Dataset Paths:
+#### 1.1. Loading the Dataset
+1.1.1 Setting Dataset Paths:
 
 The dataset's root folder is specified as "./Chest_XRay_Dataset", which contains the images and a CSV file with the ground truth (labels).
 The path to the images is stored in images_path, and the path to the CSV file containing the labels is stored in csv_path.
@@ -87,7 +87,7 @@ The CSV file containing the ground truth labels for each chest X-ray image is lo
 ```
 df = pd.read_csv(csv_path)
 ```
-Filtering Images Based on Availability:
+1.1.2 Filtering Images Based on Availability:
 
 A list of all available image files is retrieved from the xray_images directory using os.listdir().
 The DataFrame (df) is then filtered so that it only includes rows where the image index (from the CSV) exists in the images_path directory.
@@ -99,7 +99,7 @@ After filtering, the shape of the DataFrame is printed to show the number of row
 ```
 print(df.shape)
 ```
-1.2 Handling Multi-Label Format:
+1.1.3 Handling Multi-Label Format:
 
 The Finding Labels column in the CSV contains multiple labels separated by the | character (e.g., "Atelectasis|Effusion").
 The lambda function is applied to split these labels into a list for each image.
@@ -117,7 +117,7 @@ After processing the labels, the index of the DataFrame is reset using reset_ind
 ```
 df = df.reset_index()
 ```
-1.3 One-Hot Encoding the Labels:
+1.1.4 One-Hot Encoding the Labels:
 
 The multi-label format is then converted into a binary matrix using MultiLabelBinarizer. This means each label (like "Atelectasis", "Effusion", etc.) becomes its own column, and a 1 or 0 is assigned depending on whether the label is present or not for each image.
 ```
@@ -128,7 +128,7 @@ The resulting binary matrix (df_labels) is concatenated with the original DataFr
 ```
 df = pd.concat([df, df_labels], axis=1)
 ```
-1.4 Dataset Splitting:
+1.1.5 Dataset Splitting:
 
 The dataset is then split into three parts:
 Training Set (80%)
@@ -148,7 +148,7 @@ val_df.to_csv("val_data.csv", index=False)
 test_df.to_csv("test_data.csv", index=False)
 ```
 
-1.5 Image Augmentation
+#### 1.2 Image Augmentation
 Image augmentations are applied to increase the diversity of the training data, which can improve the model's generalization ability. The following augmentations are used:
 
 Gaussian Noise: Adds random noise to images to make the model robust to small perturbations.
@@ -186,3 +186,45 @@ def histogram_equalization(image):
     return cv2.cvtColor(equalized_image, cv2.COLOR_GRAY2BGR)
 These augmentations are applied in a sequence to each image in the training set.
 ```
+#### 1.3 Preprocessing and Saving Images
+preprocess_and_save_images(df, output_folder):
+
+This function takes in a DataFrame (df) and an output folder (output_folder) to process and save images.
+For each row in the DataFrame (each image), it reads the image file from the images_path directory, applies a series of transformations, and saves the processed image in a folder structure organized by label.
+Steps in this function:
+The output folder is created if it doesn't already exist.
+For each row, the image file path is determined, and the label is extracted (the first label in the list of labels).
+A sub-folder is created for each label to store the processed images.
+The image is loaded in grayscale using cv2.imread().
+The image is resized to 224x224 pixels (common for deep learning models).
+Several preprocessing transformations are applied: Gaussian noise, histogram equalization, random rotation, and perspective transformation.
+The processed image is saved into the corresponding label folder.
+```
+def preprocess_and_save_images(df, output_folder):
+    os.makedirs(output_folder, exist_ok=True)
+    for _, row in df.iterrows():
+        image_path = os.path.join(images_path, row["Image Index"])
+        label = row["Finding Labels"][0]  # Assuming first label for simplicity
+        
+        class_folder = os.path.join(output_folder, label)
+        os.makedirs(class_folder, exist_ok=True)  # Create class folder if not exists
+        
+        if not os.path.exists(image_path):
+            continue
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        image = cv2.resize(image, (224, 224))
+        image = add_gaussian_noise(image)
+        image = apply_histogram_equalization(image)
+        image = rotate_image(image, angle=np.random.choice([-15, 0, 15]))
+        image = perspective_transform(image)
+        cv2.imwrite(os.path.join(class_folder, row["Image Index"]), image)
+```
+Saving Data Splits
+Finally, after preprocessing the images and saving them into respective folders, the DataFrame splits (train, validation, and test) are saved as CSV files for future use in training, validation, and testing the model.
+
+```
+train_df.to_csv("train_data.csv", index=False)
+val_df.to_csv("val_data.csv", index=False)
+test_df.to_csv("test_data.csv", index=False)
+```
+
