@@ -227,4 +227,74 @@ train_df.to_csv("train_data.csv", index=False)
 val_df.to_csv("val_data.csv", index=False)
 test_df.to_csv("test_data.csv", index=False)
 ```
+### Step 2: ORB Feature Extraction for Image Data
+In Step 2, the focus shifts to extracting features from the images in the preprocessed dataset using the ORB (Oriented FAST and Rotated BRIEF) method. ORB is a keypoint detection algorithm that is widely used in computer vision, especially for tasks like object recognition or matching, due to its speed and efficiency. Here's a detailed breakdown of this step:
 
+#### 1. Set Paths and Initialize ORB
+At the start of the script, paths for the preprocessed images and the output CSV file are set. The processed_images_path points to the folder containing the preprocessed training images. The output_csv defines the path where the extracted features will be saved.
+
+##### ORB Initialization:
+The cv2.ORB_create() function initializes the ORB feature detector. The argument nfeatures=500 specifies that ORB will detect up to 500 keypoints per image. Keypoints are important locations in the image where distinctive features are detected.
+python
+Copy
+Edit
+processed_images_path = "./processed_images/train"  # Path to preprocessed training images
+output_csv = "train_orb_features.csv"  # Output CSV file to store extracted features
+
+##### ORB Feature Extractor Initialization
+orb = cv2.ORB_create(nfeatures=500)  # Create ORB detector that detects up to 500 keypoints
+
+#### 2. Feature Extraction
+The script uses the os library to iterate over all class folders in the processed_images_path, and for each class, it processes the images within the folder. For each image, the following operations are carried out:
+
+Load Image:
+
+The image is loaded in grayscale using OpenCV (cv2.IMREAD_GRAYSCALE) because ORB works with grayscale images, which simplifies the detection process.
+Detect Keypoints and Compute Descriptors:
+
+The orb.detectAndCompute() function is used to detect keypoints and compute the corresponding descriptors. Descriptors are the unique descriptors that represent the surrounding areas of the detected keypoints.
+The keypoints are the points in the image where significant features like corners or edges are detected. The descriptors are vectors that describe the appearance of each keypoint, which can be used for matching or recognition tasks.
+Store Features:
+
+The descriptors are stored for each image, and the image file name (Image Index) and class label (Class) are also stored.
+Each feature set (image file name, class, descriptors) is saved as a dictionary, and all dictionaries are appended to the features_list.
+##### Iterate over class folders
+```
+for class_name in os.listdir(processed_images_path):
+    class_folder = os.path.join(processed_images_path, class_name)
+
+    if not os.path.isdir(class_folder):  # Skip files that are not directories
+        continue
+
+    # Iterate over images in each class folder
+    for image_file in tqdm(os.listdir(class_folder), desc=f"Processing {class_name}"):
+        image_path = os.path.join(class_folder, image_file)
+
+        # Load image in grayscale
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            print(f"Skipping {image_path}, could not load.")
+            continue
+
+        # Detect keypoints and compute descriptors using ORB
+        keypoints, descriptors = orb.detectAndCompute(image, None)
+
+        # Store descriptors in a list, converting to a Python list for easy saving
+        features_list.append({
+            "Image Index": image_file,
+            "Class": class_name,
+            "Descriptors": descriptors.tolist() if descriptors is not None else None
+        })
+```
+#### 3. Save the Extracted Features to CSV
+Once the features for all images have been extracted and stored, they are converted into a pandas DataFrame. The DataFrame is then saved as a CSV file (train_orb_features.csv) for later use in machine learning models or other tasks.
+
+Descriptors as Lists:
+Since the descriptors are NumPy arrays, they are converted to Python lists using .tolist() to store them in a format compatible with CSV files. If no descriptors are found for a particular image, None is stored instead.
+```
+# Convert the list of features into a pandas DataFrame
+features_df = pd.DataFrame(features_list)
+
+# Save the features to a CSV file
+features_df.to_csv(output_csv, index=False)
+```
