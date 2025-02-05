@@ -12,20 +12,20 @@ Move your data files into the cloned repository folder, then use:
 ```
 git add .
 ```
-# Commit the changes
+#### Commit the changes
 ```
 git commit -m "Added new data files"
 git push origin main  # Use 'master' if that's your default branch
 ```
 
-## 4. Google Colab:
+### 4. Google Colab:
 You can easily connect Google Colab to GitHub and run your Python code with GPU support.
 
 Open Google Colab: https://colab.research.google.com/
 Select GitHub and choose your repository.
 Edit and run your code interactively.
 
-### Method 1: Open a GitHub Notebook in Colab
+#### Method 1: Open a GitHub Notebook in Colab
 If your repository contains Jupyter notebooks (.ipynb files), you can open them directly in Colab:
 
 Go to Google Colab:
@@ -38,11 +38,11 @@ In the search bar, enter your GitHub username or repo name:
 Mayuri14-ctrl/Image-classification
 Select the notebook (.ipynb) you want to open and click "Open in Colab".
 
-### Method 2: Clone a GitHub Repository in Colab
+#### Method 2: Clone a GitHub Repository in Colab
 If you want to work with Python scripts (.py) or data files, follow these steps:
 
 ### Step 5: Start writing python code 
-# Method 1 Clone the GitHub Repository
+#### Method 1 Clone the GitHub Repository
 Run the following command in a Colab cell:
 
 ```
@@ -56,7 +56,7 @@ Navigate into the cloned repository:
 %cd Image-classification
 ```
 or 
-# Method 2 Clone the Kaggle Repository
+#### Method 2 Clone the Kaggle Repository
 ```
 import kagglehub
 
@@ -67,7 +67,7 @@ print("Path to dataset files:", path)
 !cp -r /root/.cache/kagglehub/datasets/rishabhrp/chest-x-ray-dataset/versions/1 /content/chest-x-ray-dataset
 dataset_path = "/content/chest-x-ray-dataset"
 ```
-### Start building model pipeline
+#### Start building model pipeline
 ### Step 1: Data Preprocessing and Augmentation
 In this step, we focus on the essential tasks required to prepare the Chest X-ray dataset for model training. This includes data loading, class balancing, and applying augmentations. Here's a breakdown of the process:
 
