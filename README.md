@@ -309,21 +309,18 @@ Neural networks require images in a specific format. We apply:
 
 Conversion to Tensors: Converts images into PyTorch tensors.
 Normalization: Matches the mean and standard deviation of ImageNet to help ResNet-50 perform optimally.
-python
-Copy
-Edit
+```
 import torchvision.transforms as transforms
 
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+```
 1.2 Load the Preprocessed Dataset
 Since the images were saved in folders by class (processed_images/train, processed_images/val, processed_images/test), we use datasets.ImageFolder() to read them.
 
-python
-Copy
-Edit
+```
 from torchvision import datasets
 from torch.utils.data import DataLoader
 
@@ -334,59 +331,57 @@ test_dataset = datasets.ImageFolder(root='./processed_images/test', transform=tr
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+```
+
 2️⃣ Defining the Deep Learning Model
 We use ResNet-50, a pre-trained CNN model from ImageNet.
 
 2.1 Load Pretrained ResNet-50
-python
-Copy
-Edit
+```
 import torch
 import torch.nn as nn
 from torchvision import models
 
 model = models.resnet50(pretrained=True)
+```
 2.2 Freeze Pretrained Layers
 We freeze the model’s existing layers so that only the last layer learns from our dataset.
 
-python
-Copy
-Edit
+```
 for param in model.parameters():
     param.requires_grad = False
+```
 2.3 Modify the Final Layer
 The last layer of ResNet-50 is modified to match the number of classes in our dataset.
 
-python
-Copy
-Edit
+```
 num_classes = len(train_dataset.classes)
 model.fc = nn.Linear(model.fc.in_features, num_classes)
+```
 2.4 Move Model to GPU (If Available)
 We check for a CUDA-enabled GPU and move the model to the device.
 
-python
-Copy
-Edit
+```
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
+```
+
 3️⃣ Defining the Loss Function & Optimizer
 Loss Function: CrossEntropyLoss(), which is used for multi-class classification.
 Optimizer: Adam(), applied only to the last layer (since other layers are frozen).
-python
-Copy
-Edit
+
+```
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.fc.parameters(), lr=0.001)
+```
+
 4️⃣ Training the Model
 4.1 Define the Training Function
 We define a function to train the model for multiple epochs:
 
-python
-Copy
-Edit
+```
 from tqdm import tqdm
 
 def train(model, train_loader, criterion, optimizer, device, epochs=10):
@@ -415,15 +410,16 @@ def train(model, train_loader, criterion, optimizer, device, epochs=10):
         epoch_loss = running_loss / len(train_loader)
         epoch_accuracy = correct / total
         print(f"Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
+```
+
 4.2 Train the Model
 We call the train() function to train the model for 5 epochs.
 
-python
-Copy
-Edit
+```
 train(model, train_loader, criterion, optimizer, device, epochs=5)
+```
 
- Model Evaluation and Saving
+Model Evaluation and Saving
 After training the model, we need to evaluate its performance on the validation set. This involves computing accuracy, precision, recall, and F1-score for each class. We use the evaluate() function to do this.
 
 1️⃣ Defining the Evaluation Function
