@@ -482,3 +482,140 @@ Defined a loss function (CrossEntropyLoss) and optimizer (Adam).
 Trained the model for multiple epochs using GPU acceleration.
 
 
+### Step 4: Integrating OpenCV Features with Deep Learning
+This step extends our deep learning model by integrating OpenCV's ORB (Oriented FAST and Rotated BRIEF) feature descriptors with the ResNet50 model. The goal is to enhance the performance by combining CNN-based deep learning features with handcrafted feature extraction from OpenCV.
+
+1️⃣ Overview of ORB Feature Extraction
+OpenCV’s ORB (Oriented FAST and Rotated BRIEF) is a feature extraction technique used in computer vision to detect keypoints and compute descriptors in an image.
+
+Keypoints represent important locations in an image.
+Descriptors are numeric vectors representing keypoint regions, useful for matching images.
+In this step, we extract ORB features from input images and combine them with the deep learning features extracted from ResNet50.
+
+2️⃣ Code Breakdown
+🔹 Extracting ORB Features
+python
+Copy
+Edit
+def extract_orb_features(image_path):
+    # Load the image using OpenCV in grayscale
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    orb = cv2.ORB_create()
+    kp, des = orb.detectAndCompute(image, None)
+    
+    # If no keypoints are detected, return a zero vector
+    if des is None:
+        return np.zeros(32)  # Default to 32 descriptor values
+    
+    return des.flatten()[:32]  # Flatten and trim to 32 elements
+📌 Key Notes:
+
+Reads the image in grayscale using OpenCV (cv2.imread).
+Detects keypoints and extracts descriptors using ORB.
+If no keypoints are found, it returns a zero vector (to avoid errors).
+Trims the descriptor vector to 32 elements for consistency.
+🔹 Training with OpenCV Features
+python
+Copy
+Edit
+def train_with_opencv_features(model, train_loader, criterion, optimizer, device, epochs=5):
+    model.train()
+    for epoch in range(epochs):
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        for inputs, labels, paths in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}"):
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            optimizer.zero_grad()
+
+            # Forward pass through CNN (ResNet50)
+            outputs = model(inputs)
+            
+            # Extract OpenCV (ORB) features
+            opencv_features = np.array([extract_orb_features(p) for p in paths])  
+            opencv_features = StandardScaler().fit_transform(opencv_features)  # Normalize features
+
+            # Combine ResNet50 features with ORB features
+            combined_features = torch.cat((outputs, torch.tensor(opencv_features).float().to(device)), dim=1)
+            
+            # Output from combined model
+            final_output = model.fc(combined_features)
+            
+            # Compute loss
+            loss = criterion(final_output, labels)
+            loss.backward()
+            optimizer.step()
+            
+            # Track statistics
+            running_loss += loss.item()
+            _, predicted = torch.max(final_output, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        epoch_loss = running_loss / len(train_loader)
+        epoch_accuracy = correct / total
+        print(f"Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
+📌 Key Modifications in Training Process:
+
+Extracts ORB features for each image using extract_orb_features().
+Normalizes these features using StandardScaler().
+Combines the CNN (ResNet50) output with ORB features (torch.cat).
+Passes the combined features through the final classifier (model.fc).
+Computes loss and updates weights using backpropagation.
+🔹 Evaluation with OpenCV Features
+python
+Copy
+Edit
+def evaluate_with_opencv_features(model, val_loader, device):
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for inputs, labels, paths in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            # Forward pass through CNN (ResNet50)
+            outputs = model(inputs)
+            
+            # Extract OpenCV (ORB) features
+            opencv_features = np.array([extract_orb_features(p) for p in paths])  
+            opencv_features = StandardScaler().fit_transform(opencv_features)  
+
+            # Combine ResNet50 features with ORB features
+            combined_features = torch.cat((outputs, torch.tensor(opencv_features).float().to(device)), dim=1)
+            
+            # Output from combined model
+            final_output = model.fc(combined_features)
+            
+            # Track predictions
+            _, predicted = torch.max(final_output, 1)
+            y_true.extend(labels.cpu().numpy())
+            y_pred.extend(predicted.cpu().numpy())
+
+    # Classification Report
+    print("Classification Report:")
+    print(classification_report(y_true, y_pred, target_names=train_dataset.classes))
+📌 Key Changes in Evaluation:
+
+Uses torch.no_grad() to disable gradients for efficiency.
+Extracts and normalizes ORB features for validation images.
+Combines ORB features with CNN features before classification.
+Computes predictions and generates a classification report.
+🔹 Running Training and Evaluation
+python
+Copy
+Edit
+# Train the model with OpenCV features integrated
+train_with_opencv_features(model, train_loader, criterion, optimizer, device, epochs=5)
+
+# Evaluate the model on the validation set
+evaluate_with_opencv_features(model, val_loader, device)
+
+# Save the trained model
+torch.save(model.state_dict(), "hybrid_xray_model.pth")
+
+print("✅ Step 4: Integration of OpenCV Features with Deep Learning Complete.")
+Trains the model using both ResNet50 and ORB features.
+Evaluates performance on validation data.
+Saves the trained model for future use.
